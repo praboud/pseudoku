@@ -212,6 +212,33 @@ void puzzle_print(puzzle puz, FILE *f) {
     }
 }
 
+int puzzle_is_consistent(puzzle puz) {
+    for (enum iter_type t = ROW; t <= BOX; t++) {
+        for (int i = 0; i < 9; i++) {
+            struct cell *c;
+            struct iter it;
+            uint16_t seen = 0;
+            iter_init(&it, t, i);
+            int j = 0;
+            while (c = iter_next(&it, puz)) {
+                if (c->complete) {
+                    uint16_t here = 0x1 << (c->u.ink - 1);
+                    if (here & seen) {
+                        fprintf(stderr, "%s %d %d\n", iter_type_to_string[t], i, j++);
+                        return 0;
+                    } else {
+                        seen |= here;
+                    }
+                }
+            }
+            if (seen != 0x1ff) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 int (*solve_strategies[2])(puzzle) = { puzzle_singleton_cell, puzzle_singleton_number };
 #define STRAT_COUNT 2
 
@@ -224,6 +251,7 @@ void puzzle_solve(puzzle puz) {
             change |= solve_strategies[strat](puz);
         }
     }
+    assert(puzzle_is_consistent(puz));
 }
 
 int main(char *argv[], int argc) {
