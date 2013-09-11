@@ -4,37 +4,16 @@
 #include <string.h>
 #include <assert.h>
 
+#include "iter.h"
+#include "debug.h"
+
 /* constants */
 #define ALL_POS 0x1ff
 const char *sep = "-------------------------------------\n";
 const uint16_t GROUPING[4] = { 0x5555, 0x3333, 0x0f0f, 0x00ff };
 
-/* data definitions */
-/* structure to represent contents of a single cell
- * can either be complete (with an inked/completed number)
- * or incomplete, with a bitstring representing the possible 
- * numbers which may go in this cell.
- */
-struct cell {
-    unsigned int complete : 1;
-    union {
-        uint16_t pencil; /* set of possible numbers, represented bitwise.
-                            the rightmost bit represents 1,
-                            the next represents 2, etc. each bit is lit iff
-                            the corresponding number might be in this cell */
-        uint8_t ink; /* completed (or inked) cell number,
-                        valid iff completed == 1 */
-    } u;
-};
-
-typedef struct cell puzzle[9][9];
-
-enum iter_type { ROW, COL, BOX };
-struct iter {
-    enum iter_type type;
-    int num; /* number of row, col, box */
-    int pos; /* number of cell within group */
-};
+/* forward definitions */
+void puzzle_print(puzzle puz, FILE *f);
 
 /* helpers */
 int hamming_weight(uint16_t x) {
@@ -70,53 +49,21 @@ int puzzle_read(puzzle puz, FILE *f) {
     return 1;
 }
 
-void iter_init(struct iter* i, enum iter_type t, int num) {
-    i->type = t;
-    i->num = num;
-    i->pos = 0;
-}
-
-struct cell *iter_next(struct iter* i, puzzle puz) {
-    if (i->pos == 9) {
-        return NULL;
-    }
-    int x, y;
-    switch (i->type) {
-        case ROW:
-            x = i->num;
-            y = i->pos;
-            break;
-        case COL:
-            x = i->pos;
-            y = i->num;
-            break;
-        case BOX:
-            x = (i->num % 3) * 3 + i->pos % 3;
-            y = (i->num / 3) * 3 + i->pos / 3;
-            break;
-    }
-    i->pos++;
-    return &puz[x][y];
-}
-
-const char *iter_type_to_string[3] = { "ROW", "COL", "BOX" };
-
-int puzzle_pencil_possibilities(puzzle puz) {
+void puzzle_pencil_possibilities(puzzle puz) {
     for (enum iter_type t = ROW; t <= BOX; t++) {
         for (int i = 0; i < 9; i++) {
             struct iter it;
             struct cell *c;
             uint16_t inked = 0;
             iter_init(&it, t, i);
-            while (c = iter_next(&it, puz)) {
+            while ((c = iter_next(&it, puz))) {
                 if (c->complete) {
                     inked |= 0x1 << (c->u.ink - 1);
                 }
             }
-            /* fprintf(stdout, "%s %d: %x\n", iter_type_to_string[t], i, inked); */
             iter_init(&it, t, i);
             inked = ~inked;
-            while (c = iter_next(&it, puz)) {
+            while ((c = iter_next(&it, puz))) {
                 if (!c->complete) {
                     c->u.pencil &= inked;
                 }
@@ -125,8 +72,21 @@ int puzzle_pencil_possibilities(puzzle puz) {
     }
 }
 
+/* solving strategies */
+/* strategy functions must all take a puzzle, and return an integer
+ * the integer is 1 if some change has been made, and 0 otherwise
+ * the strategy applies some algorithm to either eliminate possibilities
+ * from a cell, or conclusively determine some cell.
+ * the calling function is otherwise agnostic to what the strategy does.
+ * to be used by the solving function, it must be included in the
+ * solve_strategies array. puzzle_solve calls these functions in
+ * rotation until none of the functions can progress any further
+ * (ie: * return 1)
+ */
+
 int puzzle_singleton_cell(puzzle puz) {
     int change = 0;
+    dprintf("running singleton cell\n");
     for (int i = 0; i < 9; i++) {
         for (int j = 0; j < 9; j++) {
             struct cell *c = &puz[i][j];
@@ -134,6 +94,7 @@ int puzzle_singleton_cell(puzzle puz) {
                 int x = __builtin_ctz(c->u.pencil);
                 c->complete = 1;
                 c->u.ink = x + 1;
+                change = 1;
             }
         }
     }
@@ -143,6 +104,7 @@ int puzzle_singleton_cell(puzzle puz) {
 
 int puzzle_singleton_number(puzzle puz) {
     int change = 0;
+    dprintf("running singleton number\n");
     for (enum iter_type t = ROW; t <= BOX; t++) {
         for (int i = 0; i < 9; i++) {
             struct iter it;
@@ -151,21 +113,19 @@ int puzzle_singleton_number(puzzle puz) {
             memset(rst, 0, sizeof rst);
             iter_init(&it, t, i);
             int j = 0;
-            while (c = iter_next(&it, puz)) {
-                if (c->complete) {
-                    for (int k = 0; k < 9; k++) rst[k] |= 0x1 << (c->u.ink - 1);
-                } else {
-                    for (int k = 0; k < j; k++) rst[k] |= c->u.pencil;
-                    for (int k = j + 1; k < 9; k++) rst[k] |= c->u.pencil;
-                }
+            /* get union of all cells in group but the ith */
+            while ((c = iter_next(&it, puz))) {
+                uint16_t m = cell_coerce_pencil(c);
+                for (int k = 0; k < j; k++) rst[k] |= m;
+                for (int k = j + 1; k < 9; k++) rst[k] |= m;
                 j++;
             }
             j = 0;
             iter_init(&it, t, i);
-            while (c = iter_next(&it, puz)) {
+            while ((c = iter_next(&it, puz))) {
                 if (!c->complete) {
                     int x = c->u.pencil & ~rst[j];
-                    /* fprintf(stderr, "%s %d, pos = %d, x = %d\n", iter_type_to_string[t], i, j, x); */
+                    dprintf("%s %d, pos = %d, pencil = %x, x = %d\n", iter_type_to_string[t], i, j, c->u.pencil, x);
                     int h = hamming_weight(x);
                     assert(h == 0 || h == 1);
                     if (h == 1) {
@@ -179,6 +139,63 @@ int puzzle_singleton_number(puzzle puz) {
         }
     }
     if (change) puzzle_pencil_possibilities(puz);
+    return change;
+}
+
+int puzzle_subgroup_exclusion(puzzle puz, struct iter *group,
+                              enum iter_type cross_type, int cross_num,
+                              int cross_skip_start) {
+    uint16_t sub[3];
+    memset(sub, 0, sizeof sub);
+    struct cell *c;
+    int i = 0;
+    int change = 0;
+    dprintf("crossing %s %d, skip = %d\n", iter_type_to_string[cross_type],
+            cross_num, cross_skip_start);
+    while ((c = iter_next(group, puz))) {
+        if (!c->complete) {
+            sub[i / 3] |= c->u.pencil;
+        }
+        i++;
+    }
+    /* lit bits belong to numbers which occur in exactly 1 subgroup */
+    uint16_t candidates = sub[0] ^ sub[1] ^ sub[2] ^ (sub[0] & sub[1] & sub[2]);
+    dprintf("groups are %x, %x, %x; candidates are %x\n",
+            sub[0], sub[1], sub[2], candidates);
+    if (candidates == 0) {
+        return 0;
+    }
+
+    for (int c = 0; c < 3; c++) {
+        uint16_t m = sub[c] & candidates;
+        if (m) {
+            struct iter it;
+            #ifdef DEBUF
+            pencil_print(m, stderr);
+            #endif
+            dprintf("clearing %s %d, skip at %d\n",
+                    iter_type_to_string[cross_type], cross_num+c, cross_skip_start);
+            iter_init_skip3(&it, cross_type, cross_num + c, cross_skip_start);
+            change |= iter_mask(&it, puz, m);
+        }
+    }
+    return change;
+}
+
+int puzzle_subgroup_exclusion_all(puzzle puz) {
+    struct iter it;
+    int change = 0;
+    dprintf("running subgroup exclusion\n");
+    for (enum iter_type t = ROW; t <= BOXT; t++) {
+        for (int i = 0; i < 9; i++) {
+            dprintf("running subgroup exclusion on %s %d\n",
+                    iter_type_to_string[t], i);
+
+            iter_init(&it, t, i);
+            change |= puzzle_subgroup_exclusion(puz, &it, (t + 2) % 4, (i / 3) * 3,
+                                                (i % 3) * 3);
+        }
+    }
     return change;
 }
 
@@ -220,46 +237,54 @@ int puzzle_is_consistent(puzzle puz) {
             uint16_t seen = 0;
             iter_init(&it, t, i);
             int j = 0;
-            while (c = iter_next(&it, puz)) {
+            while ((c = iter_next(&it, puz))) {
                 if (c->complete) {
                     uint16_t here = 0x1 << (c->u.ink - 1);
                     if (here & seen) {
-                        fprintf(stderr, "%s %d %d\n", iter_type_to_string[t], i, j++);
+                        dprintf("%s %d %d\n", iter_type_to_string[t], i, j++);
                         return 0;
                     } else {
                         seen |= here;
                     }
                 }
             }
+            /*
             if (seen != 0x1ff) {
                 return 0;
             }
+            */
         }
     }
     return 1;
 }
 
-int (*solve_strategies[2])(puzzle) = { puzzle_singleton_cell, puzzle_singleton_number };
-#define STRAT_COUNT 2
+int (*solve_strategies[])(puzzle) = {
+    puzzle_singleton_cell,
+    puzzle_singleton_number,
+    puzzle_subgroup_exclusion_all
+};
 
-void puzzle_solve(puzzle puz) {
+int strat_count = sizeof solve_strategies / sizeof solve_strategies[0];
+
+void puzzle_solve (puzzle puz) {
     int change = 1;
-    puzzle_pencil_possibilities(puz);
     while (change) {
         change = 0;
-        for (int strat = 0; strat < STRAT_COUNT; strat++) {
+        for (int strat = 0; strat < strat_count; strat++) {
             change |= solve_strategies[strat](puz);
+            dprintf("\n");
         }
     }
     assert(puzzle_is_consistent(puz));
 }
 
-int main(char *argv[], int argc) {
+int main (void) {
     /* uint16_t x; */
     /* scanf("%hd", &x); */
     /* printf("%x, %d\n", x, hamming_weight(x)); */
     puzzle puz;
     puzzle_read(puz, stdin);
+    puzzle_pencil_possibilities(puz);
     puzzle_solve(puz);
     puzzle_print(puz, stdout);
 }
