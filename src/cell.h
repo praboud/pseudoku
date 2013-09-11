@@ -29,5 +29,6 @@ uint16_t ink_to_pencil(uint8_t ink);
 int pencil_contains_number(uint16_t pencil, uint8_t number);
 void pencil_print(uint16_t pencil, FILE* f);
 uint16_t cell_coerce_pencil(struct cell *c);
+int hamming_weight(uint16_t x);
 
 #endif

@@ -31,3 +31,14 @@ uint16_t cell_coerce_pencil(struct cell *c) {
         return c->u.pencil;
     }
 }
+
+const uint16_t GROUPING[4] = { 0x5555, 0x3333, 0x0f0f, 0x00ff };
+
+int hamming_weight(uint16_t x) {
+    const uint16_t *g = GROUPING;
+    for (int i = 1; i <= 8; i *= 2) {
+        x = (x & *g) + ((x >> i) & *g);
+        g++;
+    }
+    return x;
+}
