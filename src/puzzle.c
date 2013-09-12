@@ -107,3 +107,13 @@ int puzzle_is_consistent(puzzle puz) {
     }
     return 1;
 }
+
+int puzzle_noninked_count(puzzle puz) {
+    int count = 0;
+    for (int x = 0; x < 9; x++) {
+        for (int y = 0; y < 9; y++) {
+            if (!puz[x][y].complete) count++;
+        }
+    }
+    return count;
+}

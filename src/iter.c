@@ -61,3 +61,21 @@ int iter_mask(struct iter* i, puzzle puz, uint16_t mask) {
     }
     return change;
 }
+
+int iter_consistent(struct iter* i, puzzle puz) {
+    uint16_t seen = 0;
+    struct cell *c;
+    int j = 0;
+    while ((c = iter_next(i, puz))) {
+        if (c->complete) {
+            uint16_t cur = ink_to_pencil(c->u.ink);
+            if (seen & cur) {
+                return 0;
+            } else {
+                seen |= cur;
+            }
+        }
+        j++;
+    }
+    return 1;
+}

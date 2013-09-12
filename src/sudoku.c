@@ -8,6 +8,7 @@
 #include "debug.h"
 #include "strategy.h"
 #include "puzzle.h"
+#include "backtrack.h"
 
 /* forward definitions */
 void puzzle_print(puzzle puz, FILE *f);
@@ -31,6 +32,13 @@ int main (void) {
     puzzle puz;
     puzzle_read(puz, stdin);
     puzzle_pencil_possibilities(puz);
+    puzzle_print(puz, stdout);
+    putc('\n', stdout);
+
     puzzle_solve(puz);
+    puzzle_print(puz, stdout);
+    putc('\n', stdout);
+
+    backtrack(puz);
     puzzle_print(puz, stdout);
 }

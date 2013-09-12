@@ -104,9 +104,7 @@ int puzzle_subgroup_exclusion(puzzle puz, struct iter *group,
         uint16_t m = sub[c] & candidates;
         if (m) {
             struct iter it;
-            #ifdef DEBUF
-            pencil_print(m, stderr);
-            #endif
+            pencil_dprint(m);
             dprintf("clearing %s %d, skip at %d\n",
                     iter_type_to_string[cross_type], cross_num+c, cross_skip_start);
             iter_init_skip3(&it, cross_type, cross_num + c, cross_skip_start);

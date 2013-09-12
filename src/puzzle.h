@@ -6,5 +6,6 @@ int puzzle_read(puzzle puz, FILE *f);
 void puzzle_pencil_possibilities(puzzle puz);
 void puzzle_print(puzzle puz, FILE *f);
 int puzzle_is_consistent(puzzle puz);
+int puzzle_noninked_count(puzzle puz);
 
 #endif
