@@ -9,7 +9,7 @@ struct step {
     uint16_t pencil;
 };
 
-int next_possibility(uint16_t pencil, int last) {
+int _next_possibility(uint16_t pencil, int last) {
     int next = pencil >> last;
     if (next) {
         next = __builtin_ffs(next) + last;
@@ -20,8 +20,8 @@ int next_possibility(uint16_t pencil, int last) {
     return next;
 }
 
-int fill_cell(puzzle puz, struct step **stack, int x, int y, int last_guess) {
-    int next = next_possibility(puz[x][y].u.pencil, last_guess);
+int _fill_cell(puzzle puz, struct step **stack, int x, int y, int last_guess) {
+    int next = _next_possibility(puz[x][y].u.pencil, last_guess);
     assert(next >= 0 && next <= 9);
     if (next == 0) {
         return 0;
@@ -40,7 +40,7 @@ int fill_cell(puzzle puz, struct step **stack, int x, int y, int last_guess) {
     }
 }
 
-int consistent(puzzle puz, int x, int y) {
+int _consistent(puzzle puz, int x, int y) {
     struct iter it;
     dprintf("row %d\n", y);
     iter_init(&it, ROW, y);
@@ -54,7 +54,7 @@ int consistent(puzzle puz, int x, int y) {
     return 1;
 }
 
-int next_unfilled(puzzle puz, int *x, int *y) {
+int _next_unfilled(puzzle puz, int *x, int *y) {
     while (*x < 9 && *y < 9 && puz[*x][*y].complete) {
         (*x)++;
         *y += *x / 9;
@@ -63,37 +63,28 @@ int next_unfilled(puzzle puz, int *x, int *y) {
     return *x < 9 && *y < 9;
 }
 
-void test_stack(struct step *stack, struct step *end, puzzle puz) {
-    while (stack < end) {
-        dprintf("testing stack, getting pos x = %d, y = %d\n", stack->x, stack->y);
-        assert(puz[stack->x][stack->y].complete);
-        stack++;
-    }
-}
-
-int run_backtrack(puzzle puz, struct step * const stack, struct step *stackp, int x, int y) {
-    if (!next_unfilled(puz, &x, &y)) {
+int _run_backtrack(puzzle puz, struct step * const stack, struct step *stackp, int x, int y) {
+    if (!_next_unfilled(puz, &x, &y)) {
         return 1;
     }
-    if(!fill_cell(puz, &stackp, x, y, 0)) {
+    if(!_fill_cell(puz, &stackp, x, y, 0)) {
         assert(0);
         return 0;
     }
     while (1) {
         dprintf("s = %ld, x = %d, y = %d\n", stackp - stack, x, y);
         assert(puz[x][y].complete);
-        if (consistent(puz, x, y)) {
-            if (!next_unfilled(puz, &x, &y)) {
+        if (_consistent(puz, x, y)) {
+            if (!_next_unfilled(puz, &x, &y)) {
                 return 1;
             } else {
                 dprintf("progressing\n");
-                if (!fill_cell(puz, &stackp, x, y, 0)) {
+                if (!_fill_cell(puz, &stackp, x, y, 0)) {
                     return 0;
                 }
             }
         } else {
             do {
-                test_stack(stack, stackp, puz);
                 dprintf("backtracking, x = %d, y = %d\n", x, y);
                 assert(puz[x][y].complete);
 
@@ -105,7 +96,7 @@ int run_backtrack(puzzle puz, struct step * const stack, struct step *stackp, in
                 uint8_t last_tried = puz[x][y].u.ink;
                 puz[x][y].complete = 0;
                 puz[x][y].u.pencil = stackp->pencil;
-                if (!fill_cell(puz, &stackp, x, y, last_tried)) {
+                if (!_fill_cell(puz, &stackp, x, y, last_tried)) {
                     /* we have exhausted options, so we must have guessed badly
                      * at some point before; therefore, we turn back */
                     if (stackp < stack) {
@@ -136,7 +127,7 @@ int backtrack(puzzle puz) {
     struct step stack[stack_size];
     dprintf("%d unfilled\n", stack_size);
     int success;
-    if ((success = run_backtrack(puz, stack, stack, 0, 0))) {
+    if ((success = _run_backtrack(puz, stack, stack, 0, 0))) {
         assert(puzzle_is_consistent(puz));
         assert(puzzle_noninked_count(puz) == 0);
     }

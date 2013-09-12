@@ -18,7 +18,7 @@
  * (ie: * return 1)
  */
 
-int puzzle_singleton_cell(puzzle puz) {
+int _puzzle_singleton_cell(puzzle puz) {
     int change = 0;
     dprintf("running singleton cell\n");
     for (int i = 0; i < 9; i++) {
@@ -36,7 +36,7 @@ int puzzle_singleton_cell(puzzle puz) {
     return change;
 }
 
-int puzzle_singleton_number(puzzle puz) {
+int _puzzle_singleton_number(puzzle puz) {
     int change = 0;
     dprintf("running singleton number\n");
     for (enum iter_type t = ROW; t <= BOX; t++) {
@@ -76,7 +76,7 @@ int puzzle_singleton_number(puzzle puz) {
     return change;
 }
 
-int puzzle_subgroup_exclusion(puzzle puz, struct iter *group,
+int _puzzle_subgroup_exclusion(puzzle puz, struct iter *group,
                               enum iter_type cross_type, int cross_num,
                               int cross_skip_start) {
     uint16_t sub[3];
@@ -114,7 +114,7 @@ int puzzle_subgroup_exclusion(puzzle puz, struct iter *group,
     return change;
 }
 
-int puzzle_subgroup_exclusion_all(puzzle puz) {
+int _puzzle_subgroup_exclusion_all(puzzle puz) {
     struct iter it;
     int change = 0;
     dprintf("running subgroup exclusion\n");
@@ -124,17 +124,30 @@ int puzzle_subgroup_exclusion_all(puzzle puz) {
                     iter_type_to_string[t], i);
 
             iter_init(&it, t, i);
-            change |= puzzle_subgroup_exclusion(puz, &it, (t + 2) % 4, (i / 3) * 3,
+            change |= _puzzle_subgroup_exclusion(puz, &it, (t + 2) % 4, (i / 3) * 3,
                                                 (i % 3) * 3);
         }
     }
     return change;
 }
 
-int (*solve_strategies[])(puzzle) = {
-    puzzle_singleton_cell,
-    puzzle_singleton_number,
-    puzzle_subgroup_exclusion_all
+int (*_strategies[])(puzzle) = {
+    _puzzle_singleton_cell,
+    _puzzle_singleton_number,
+    _puzzle_subgroup_exclusion_all
 };
 
-int strat_count = sizeof solve_strategies / sizeof solve_strategies[0];
+int _strategy_count = sizeof _strategies / sizeof _strategies[0];
+
+void puzzle_solve (puzzle puz) {
+    int change = 1;
+    while (change) {
+        change = 0;
+        for (int strat = 0; strat < _strategy_count; strat++) {
+            change |= _strategies[strat](puz);
+            dprintf("\n");
+        }
+    }
+    assert(puzzle_is_consistent(puz));
+}
+

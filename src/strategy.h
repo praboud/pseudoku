@@ -3,7 +3,6 @@
 
 #include "cell.h"
 
-extern int (*solve_strategies[])(puzzle);
-extern int strat_count;
+void puzzle_solve (puzzle puz);
 
 #endif

@@ -13,18 +13,6 @@
 /* forward definitions */
 void puzzle_print(puzzle puz, FILE *f);
 
-void puzzle_solve (puzzle puz) {
-    int change = 1;
-    while (change) {
-        change = 0;
-        for (int strat = 0; strat < strat_count; strat++) {
-            change |= solve_strategies[strat](puz);
-            dprintf("\n");
-        }
-    }
-    assert(puzzle_is_consistent(puz));
-}
-
 int main (void) {
     /* uint16_t x; */
     /* scanf("%hd", &x); */
