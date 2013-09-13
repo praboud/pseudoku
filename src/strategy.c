@@ -5,6 +5,7 @@
 #include "debug.h"
 #include "puzzle.h"
 #include "iter.h"
+#include "constants.h"
 
 /* solving strategies */
 /* strategy functions must all take a puzzle, and return an integer
@@ -24,15 +25,20 @@ int _puzzle_singleton_cell(puzzle puz) {
     for (int i = 0; i < 9; i++) {
         for (int j = 0; j < 9; j++) {
             struct cell *c = &puz[i][j];
-            if (!c->complete && hamming_weight(c->u.pencil) == 1) {
-                int x = __builtin_ctz(c->u.pencil);
-                c->complete = 1;
-                c->u.ink = x + 1;
-                change = 1;
+            if (!c->complete) {
+                if (hamming_weight(c->u.pencil) == 1) {
+                    /* then only one number can occupy this cell,
+                     * so we can fill it in*/
+                    puzzle_fill_cell(puz, i, j, pencil_to_ink(c->u.pencil));
+                    change = 1;
+                } else if (c->u.pencil == 0) {
+                    /* then no number can occupy this cell,
+                     * so the puzzle is inconsistent */
+                    return INCONSISTENT;
+                }
             }
         }
     }
-    if (change) puzzle_pencil_possibilities(puz);
     return change;
 }
 
@@ -47,32 +53,43 @@ int _puzzle_singleton_number(puzzle puz) {
             memset(rst, 0, sizeof rst);
             iter_init(&it, t, i);
             int j = 0;
+            uint16_t all_seen = 0;
             /* get union of all cells in group but the ith */
             while ((c = iter_next(&it, puz))) {
                 uint16_t m = cell_coerce_pencil(c);
+                all_seen |= m;
                 for (int k = 0; k < j; k++) rst[k] |= m;
                 for (int k = j + 1; k < 9; k++) rst[k] |= m;
                 j++;
             }
+            if (all_seen != ALL_POS) {
+                /* then there is at least one number is not filled in,
+                 * and cannot go in any of the remaining places.
+                 * hence, the puzzle is inconsistent */
+                return INCONSISTENT;
+            }
             j = 0;
             iter_init(&it, t, i);
-            while ((c = iter_next(&it, puz))) {
+            struct coord co;
+            while ((c = iter_next_c(&it, puz, &co))) {
                 if (!c->complete) {
                     int x = c->u.pencil & ~rst[j];
                     dprintf("%s %d, pos = %d, pencil = %x, x = %d\n", iter_type_to_string[t], i, j, c->u.pencil, x);
                     int h = hamming_weight(x);
-                    assert(h == 0 || h == 1);
                     if (h == 1) {
-                        c->complete = 1;
-                        c->u.ink = __builtin_ctz(x) + 1;
+                        puzzle_fill_cell(puz, co.x, co.y, pencil_to_ink(x));
                         change = 1;
+                    } else if (h > 1) {
+                        /* then there are two or more numbers which must
+                         * occupy the same cell. this is impossible, hence
+                         * the puzzle is inconsistent */
+                        return INCONSISTENT;
                     }
                 }
                 j++;
             }
         }
     }
-    if (change) puzzle_pencil_possibilities(puz);
     return change;
 }
 
@@ -108,7 +125,11 @@ int _puzzle_subgroup_exclusion(puzzle puz, struct iter *group,
             dprintf("clearing %s %d, skip at %d\n",
                     iter_type_to_string[cross_type], cross_num+c, cross_skip_start);
             iter_init_skip3(&it, cross_type, cross_num + c, cross_skip_start);
-            change |= iter_mask(&it, puz, m);
+            int res = iter_mask(&it, puz, m);
+            if (res == INCONSISTENT) {
+                return INCONSISTENT;
+            }
+            change |= res;
         }
     }
     return change;
@@ -139,15 +160,20 @@ int (*_strategies[])(puzzle) = {
 
 int _strategy_count = sizeof _strategies / sizeof _strategies[0];
 
-void puzzle_solve (puzzle puz) {
+int puzzle_solve (puzzle puz) {
     int change = 1;
     while (change) {
         change = 0;
         for (int strat = 0; strat < _strategy_count; strat++) {
-            change |= _strategies[strat](puz);
+            int res = _strategies[strat](puz);
+            if (res == INCONSISTENT) {
+                return INCONSISTENT;
+            }
+            change |= res;
             dprintf("\n");
         }
     }
     assert(puzzle_is_consistent(puz));
+    return SOLVED;
 }
 

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "iter.h"
+#include "constants.h"
 
 const char *iter_type_to_string[] = { "ROW", "COL", "BOX", "BOXT" };
 
@@ -19,34 +20,44 @@ void iter_init_skip3(struct iter *i, enum iter_type t, int num, int skip) {
     i->skip_start = skip;
 }
 
-struct cell *iter_next(struct iter* i, puzzle puz) {
+struct coord iter_coord(struct iter* i) {
+    struct coord c;
+    switch (i->type) {
+        case ROW:
+            c.x = i->pos;
+            c.y = i->num;
+            break;
+        case COL:
+            c.x = i->num;
+            c.y = i->pos;
+            break;
+        case BOX:
+            c.x = (i->num % 3) * 3 + i->pos % 3;
+            c.y = (i->num / 3) * 3 + i->pos / 3;
+            break;
+        case BOXT:
+            c.x = (i->num / 3) * 3 + i->pos / 3;
+            c.y = (i->num % 3) * 3 + i->pos % 3;
+            break;
+    }
+    return c;
+}
+
+struct cell *iter_next_c(struct iter* i, puzzle puz, struct coord *c) {
     if (i->stype == THREE && i->skip_start == i->pos) {
         i->pos += 3;
     }
     if (i->pos == 9) {
         return NULL;
     }
-    int x, y;
-    switch (i->type) {
-        case ROW:
-            x = i->pos;
-            y = i->num;
-            break;
-        case COL:
-            x = i->num;
-            y = i->pos;
-            break;
-        case BOX:
-            x = (i->num % 3) * 3 + i->pos % 3;
-            y = (i->num / 3) * 3 + i->pos / 3;
-            break;
-        case BOXT:
-            x = (i->num / 3) * 3 + i->pos / 3;
-            y = (i->num % 3) * 3 + i->pos % 3;
-            break;
-    }
+    *c = iter_coord(i);
     i->pos++;
-    return &puz[x][y];
+    return &puz[c->x][c->y];
+}
+
+struct cell *iter_next(struct iter* i, puzzle puz) {
+    struct coord c;
+    return iter_next_c(i, puz, &c);
 }
 
 int iter_mask(struct iter* i, puzzle puz, uint16_t mask) {
@@ -57,9 +68,12 @@ int iter_mask(struct iter* i, puzzle puz, uint16_t mask) {
         if (!c->complete) {
             change = change || (mask & c->u.pencil);
             c->u.pencil &= rev;
+            if (!c->u.pencil) {
+                return INCONSISTENT;
+            }
         }
     }
-    return change;
+    return change ? CHANGE : NO_CHANGE;
 }
 
 int iter_consistent(struct iter* i, puzzle puz) {

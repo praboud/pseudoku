@@ -9,6 +9,7 @@
 #include "strategy.h"
 #include "puzzle.h"
 #include "backtrack.h"
+#include "constants.h"
 
 /* forward definitions */
 void puzzle_print(puzzle puz, FILE *f);
@@ -23,10 +24,18 @@ int main (void) {
     puzzle_print(puz, stdout);
     putc('\n', stdout);
 
-    puzzle_solve(puz);
-    puzzle_print(puz, stdout);
-    putc('\n', stdout);
+    if (puzzle_solve(puz) == INCONSISTENT) {
+        puzzle_print(puz, stdout);
+        printf("The puzzle is inconsistent\n");
+    } else {
+        puzzle_print(puz, stdout);
+        putc('\n', stdout);
 
-    backtrack(puz);
-    puzzle_print(puz, stdout);
+        if (backtrack(puz) == 0) {
+            puzzle_print(puz, stdout);
+            printf("The puzzle is inconsistent\n");
+        } else {
+            puzzle_print(puz, stdout);
+        }
+    }
 }

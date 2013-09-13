@@ -1,20 +1,21 @@
-#include "cell.h"
+#include <assert.h>
 
+#include "cell.h"
 #include "debug.h"
 #include "puzzle.h"
 #include "iter.h"
+#include "constants.h"
 
-#define ALL_POS 0x1ff
 const char *sep = "-------------------------------------\n";
 
 int puzzle_read(puzzle puz, FILE *f) {
     char line[64];
     int i, j;
-    i = 0;
+    j = 0;
     while (fgets(line, sizeof(line), f)) {
-        j = 0;
-        while (j < 9 && line[j]) {
-            char c = line[j];
+        i = 0;
+        char c;
+        while (i < 9 && (c = line[i])) {
             if (c == ' ') {
                 puz[i][j].complete = 0;
                 puz[i][j].u.pencil = ALL_POS;
@@ -24,9 +25,9 @@ int puzzle_read(puzzle puz, FILE *f) {
             } else {
                 return 0;
             }
-            j++;
+            i++;
         }
-        i++;
+        j++;
     }
     return 1;
 }
@@ -116,4 +117,35 @@ int puzzle_noninked_count(puzzle puz) {
         }
     }
     return count;
+}
+
+void puzzle_copy(puzzle src, puzzle dst) {
+    for (int x = 0; x < 9; x++) {
+        for (int y = 0; y < 9; y++) {
+            dst[x][y] = src[x][y];
+        }
+    }
+}
+
+void puzzle_init(puzzle puz) {
+    for (int x = 0; x < 9; x++) {
+        for (int y = 0; y < 9; y++) {
+            puz[x][y].complete = 0;
+            puz[x][y].u.pencil = ALL_POS;
+        }
+    }
+}
+
+void puzzle_fill_cell(puzzle puz, int x, int y, int n) {
+    assert(puz[x][y].complete == 0);
+    puz[x][y].complete = 1;
+    puz[x][y].u.ink = n;
+    int mask = ink_to_pencil(n);
+    struct iter it;
+    iter_init(&it, ROW, y);
+    iter_mask(&it, puz, mask);
+    iter_init(&it, COL, x);
+    iter_mask(&it, puz, mask);
+    iter_init(&it, BOX, (y / 3) * 3 + x / 3);
+    iter_mask(&it, puz, mask);
 }

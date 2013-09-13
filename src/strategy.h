@@ -3,6 +3,6 @@
 
 #include "cell.h"
 
-void puzzle_solve (puzzle puz);
+int puzzle_solve (puzzle puz);
 
 #endif
