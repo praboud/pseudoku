@@ -137,7 +137,7 @@ void puzzle_init(puzzle puz) {
 }
 
 void puzzle_fill_cell(puzzle puz, int x, int y, int n) {
-    assert(puz[x][y].complete == 0);
+    assert(!puz[x][y].complete);
     puz[x][y].complete = 1;
     puz[x][y].u.ink = n;
     int mask = ink_to_pencil(n);
@@ -148,4 +148,11 @@ void puzzle_fill_cell(puzzle puz, int x, int y, int n) {
     iter_mask(&it, puz, mask);
     iter_init(&it, BOX, (y / 3) * 3 + x / 3);
     iter_mask(&it, puz, mask);
+}
+
+void puzzle_clear_cell(puzzle puz, int x, int y) {
+    assert(puz[x][y].complete);
+    /* reset cell */
+    puz[x][y].complete = 0;
+    puz[x][y].u.pencil = ALL_POS;
 }

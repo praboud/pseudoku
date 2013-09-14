@@ -76,6 +76,17 @@ int iter_mask(struct iter* i, puzzle puz, uint16_t mask) {
     return change ? CHANGE : NO_CHANGE;
 }
 
+uint16_t iter_acum(struct iter *i, puzzle puz) {
+    struct cell *c;
+    uint16_t acc = 0;
+    while ((c = iter_next(i, puz))) {
+        if (c->complete) {
+            acc |= ink_to_pencil(c->u.ink);
+        }
+    }
+    return acc;
+}
+
 int iter_consistent(struct iter* i, puzzle puz) {
     uint16_t seen = 0;
     struct cell *c;
