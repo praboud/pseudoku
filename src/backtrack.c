@@ -65,10 +65,9 @@ int _next_unfilled(puzzle puz, int *x, int *y) {
     return *x < 9 && *y < 9;
 }
 
-int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp, int *x, int *y) {
+int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp, int *x, int *y, int last_tried) {
     struct step *stackp = *stackpp;
-    if(!_fill_cell(puz, &stackp, *x, *y, 0)) {
-        assert(0);
+    if(!_fill_cell(puz, &stackp, *x, *y, last_tried)) {
         dprintf("initial fill failed\n");
         return 0;
     }
@@ -143,7 +142,7 @@ int puzzle_backtrack(puzzle puz) {
     if (!_next_unfilled(puz, &x, &y)) {
         return 1;
     }
-    if ((success = _run_backtrack(puz, stack, &stackp, &x, &y))) {
+    if ((success = _run_backtrack(puz, stack, &stackp, &x, &y, 0))) {
         assert(puzzle_is_consistent(puz));
         assert(puzzle_noninked_count(puz) == 0);
     }
@@ -154,17 +153,25 @@ int puzzle_is_unique(puzzle puz) {
     int stack_size = puzzle_noninked_count(puz);
     struct step stack[stack_size];
     struct step *stackp = stack;
-    int solution_count;
+    int solution_count = 0;
     int x = 0;
     int y = 0;
-    dprintf("checking for uniqueness\n");
+    int last_tried = 0;
     if (!_next_unfilled(puz, &x, &y)) {
         return 1;
     }
-    while (_run_backtrack(puz, stack, &stackp, &x, &y) && solution_count < 2) {
+    while (_run_backtrack(puz, stack, &stackp, &x, &y, last_tried) && solution_count < 2) {
         assert(puzzle_is_consistent(puz));
         assert(puzzle_noninked_count(puz) == 0);
         solution_count++;
+        assert(stackp - stack == stack_size);
+        stackp--;
+        x = stackp->x;
+        y = stackp->y;
+        assert(puz[x][y].complete);
+        last_tried = puz[x][y].u.ink;
+        puz[x][y].complete = 0;
+        puz[x][y].u.pencil = stackp->pencil;
     }
     return solution_count;
 }
