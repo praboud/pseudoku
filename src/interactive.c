@@ -10,6 +10,10 @@
 #include "constants.h"
 #include "generator.h"
 
+#define CH_HORIZ '-'
+#define CH_VERT '|'
+#define CH_CROSS '+'
+
 void _puzzle_printw_cell(struct cell *c, int highlight) {
     int x, y;
     getyx(stdscr, y, x);
@@ -47,7 +51,9 @@ void _print_dividers(int x, int y) {
             if (j % 3 == 0) {
                 attron(COLOR_PAIR(1));
             }
-            mvaddstr(4 * j, 1 + 4 * i, "---");
+            for (int k = 1; k <= 3; k++) {
+                mvaddch(4 * j, k + 4 * i, CH_HORIZ);
+            }
             attroff(A_REVERSE);
             attroff(COLOR_PAIR(1));
         }
@@ -62,25 +68,21 @@ void _print_dividers(int x, int y) {
             if (y == j && (x == i || x == i - 1)) {
                 attron(A_REVERSE);
             }
-            mvaddch(1 + 4 * j, 4 * i, '|');
-            mvaddch(2 + 4 * j, 4 * i, '|');
-            mvaddch(3 + 4 * j, 4 * i, '|');
+            for (int k = 1; k <= 3; k++) {
+                mvaddch(k + 4 * j, 4 * i, CH_VERT);
+            }
             attroff(A_REVERSE);
             attroff(COLOR_PAIR(1));
         }
     }
-    return;
-    /* print vertical dividers */
-    for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-            if (y == j && (x == i || x == i + 1)) {
-                attron(A_BOLD);
-            } else {
-                attroff(A_BOLD);
+    /* print middle dividers */
+    for (int i = 0; i <= 9; i++) {
+        for (int j = 0; j <= 9; j++) {
+            if (i % 3 == 0 || j % 3 == 0) {
+                attron(COLOR_PAIR(1));
             }
-            mvaddch(1 + 3 * j, 1 + 3 * i, '|');
-            mvaddch(2 + 3 * j, 1 + 3 * i, '|');
-            mvaddch(3 + 3 * j, 1 + 3 * i, '|');
+            mvaddch(4 * j, 4 * i, CH_CROSS);
+            attroff(COLOR_PAIR(1));
         }
     }
 }
@@ -149,7 +151,7 @@ void interactive(void) {
                 break;
             case 'c':
                 ch = getch();
-                if ('0' <= ch && ch <= '9') {
+                if ('0' < ch && ch <= '9') {
                     highlight = ch - '0';
                 } else {
                     highlight = 0;
@@ -157,7 +159,7 @@ void interactive(void) {
                 break;
             case 'f':
                 ch = getch();
-                if ('0' <= ch && ch <= '9') {
+                if ('0' < ch && ch <= '9') {
                     if (!puz[x][y].complete) {
                         puzzle_fill_cell(puz, x, y, ch - '0');
                     } else {
@@ -165,16 +167,10 @@ void interactive(void) {
                     }
                 }
                 break;
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-            case '5':
-            case '6':
-            case '7':
-            case '8':
-            case '9':
-                _toggle_cell(puz, x, y, ch - '0');
+            default:
+                if ('0' < ch && ch <= '9') {
+                    _toggle_cell(puz, x, y, ch - '0');
+                }
                 break;
         }
         _puzzle_printw(puz, highlight);
