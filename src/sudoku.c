@@ -16,9 +16,6 @@
 void puzzle_print(puzzle puz, FILE *f);
 
 void read_and_solve (void) {
-    /* uint16_t x; */
-    /* scanf("%hd", &x); */
-    /* printf("%x, %d\n", x, hamming_weight(x)); */
     puzzle puz;
     puzzle_read(puz, stdin);
     puzzle_pencil_possibilities(puz);
@@ -48,6 +45,17 @@ void generate(void) {
     puzzle_print(puz, stdout);
 }
 
+void test_unique(void) {
+    puzzle puz;
+    puzzle_read(puz, stdin);
+    /* puzzle_print(puz, stdout); */
+    puzzle_pencil_possibilities(puz);
+    /* puzzle_print(puz, stdout); */
+    puzzle_solve(puz);
+    /* puzzle_print(puz, stdout); */
+    printf("%d solutions found\n", puzzle_is_unique(puz));
+}
+
 int main(int argc, char *argv[]) {
     if (argc == 2) {
         char *command = argv[1];
@@ -60,8 +68,11 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(command, "interactive") == 0) {
             interactive();
             return 0;
+        } else if (strcmp(command, "unique") == 0) {
+            test_unique();
+            return 0;
         }
     }
-    puts("Usage: ./sudoku [solve|generate]");
+    puts("Usage: ./sudoku [solve|generate|interactive|unique]");
     return 1;
 }

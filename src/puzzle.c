@@ -80,6 +80,17 @@ void puzzle_print(puzzle puz, FILE *f) {
     }
 }
 
+void puzzle_print_short(puzzle puz, FILE *f) {
+    struct cell *c;
+    for (int y = 0; y < 9; y++) {
+        for (int x = 0; x < 9; x++) {
+            c = &puz[x][y];
+            putc(c->complete ? c->u.ink + '0' : ' ', f);
+        }
+        putc('\n', f);
+    }
+}
+
 int puzzle_is_consistent(puzzle puz) {
     for (enum iter_type t = ROW; t <= BOX; t++) {
         for (int i = 0; i < 9; i++) {

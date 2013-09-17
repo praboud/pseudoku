@@ -56,6 +56,7 @@ int _consistent(puzzle puz, int x, int y) {
 
 int _next_unfilled(puzzle puz, int *x, int *y) {
     int d = *y * 9 + *x;
+    UNUSED(d);
     while (*x < 9 && *y < 9 && puz[*x][*y].complete) {
         (*x)++;
         *y += *x / 9;
@@ -98,7 +99,7 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
 
                 /* fill_cell increments stackp, so decrement to get last step
                  * written and prepare to overwrite the step*/
-                if (stackp == stack) {
+                if (stackp < stack) {
                     /* we have no where to turn back to, so fail out */
                     dprintf("ran out of options\n");
                     return 0;
@@ -108,9 +109,7 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
                 uint8_t last_tried = puz[*x][*y].u.ink;
                 puz[*x][*y].complete = 0;
                 puz[*x][*y].u.pencil = stackp->pencil;
-                struct step *temp = stackp;
                 if (!_fill_cell(puz, &stackp, *x, *y, last_tried)) {
-                    assert(temp == stackp);
                     stackp--;
                     /* we have exhausted options, so we must have guessed badly
                      * at some point before; therefore, we turn back
