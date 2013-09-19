@@ -235,6 +235,48 @@ int _naked_cb(int len, int *set, struct cell **group, uint16_t poss_union) {
     return change;
 }
 
+int _hidden_cb(int len, int *set, struct cell **group, uint16_t poss_union) {
+    uint16_t mask = 0;
+    int j = len - 1;
+    int change = 0;
+    /* for (int i = 0; i < len; i++) { */
+    /*     printf("%d\n", set[i]); */
+    /* } */
+    for (int i = 8; i >= 0; i--) {
+        mask <<= 1;
+        if (j >= 0 && set[j] == i) {
+            j--;
+            mask |= 0x1;
+        }
+    }
+    /* printf("found hidden set: "); */
+    /* pencil_print(mask, stdout); */
+    /* printf("\n"); */
+    for (int i = 0; i < 9; i++) {
+        /* printf("p = %x\n", poss_union); */
+        if (poss_union & 0x1) {
+            assert(!group[i]->complete);
+            change = change || (group[i]->u.pencil & ~mask);
+            group[i]->u.pencil &= mask;
+        }
+        poss_union >>= 1;
+    }
+    return change;
+}
+
+void _possibility_histogram(uint16_t poss[9]) {
+    uint16_t hist[9];
+    memset(hist, 0, sizeof(uint16_t) * 9);
+    for (int i = 8; i >= 0; i--) {
+        for (int j = 0; j < 9; j++) {
+            hist[j] = ((hist[j] << 1) | (poss[i] & 0x1));
+            poss[i] >>= 1;
+        }
+        assert(!poss[i]);
+    }
+    memcpy(poss, hist, sizeof(uint16_t) * 9);
+}
+
 int _puzzle_naked_set(puzzle puz) {
     int change = 0;
     struct cell *group[9];
@@ -245,7 +287,7 @@ int _puzzle_naked_set(puzzle puz) {
             iter_init(&it, t, i);
             int nonzero_count = 0;
             puzzle_dprint(puz);
-            dprintf("running naked set analysis on %s %d\n",
+            dprintf("running set analysis on %s %d\n",
                     iter_type_to_string[t], i);
 
             for (int j = 0; j < 9; j++) {
@@ -259,8 +301,11 @@ int _puzzle_naked_set(puzzle puz) {
                 }
                 possibilities[j] = c->complete ? 0 : c->u.pencil;
             }
-            change |= _find_subsets(possibilities, group,
-                                    nonzero_count, _naked_cb);
+            change |= _find_subsets(possibilities, group, nonzero_count,
+                                    _naked_cb);
+            _possibility_histogram(possibilities);
+            change |= _find_subsets(possibilities, group, nonzero_count,
+                                    _hidden_cb);
             dprintf("...done\n");
             puzzle_dprint(puz);
         }
