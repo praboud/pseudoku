@@ -1,11 +1,4 @@
 cmake_minimum_required(VERSION 2.6)
-#find_package(Curses REQUIRED)
-#include_directories(${CURSES_INCLUDE_DIRS})
-#set(CURSES_INCLUDE_PATH /usr/include)
-set(CURSES_LIBRARY /usr/lib/libcurses.so)
-set(LIBS ${LIBS} ${CURSES_LIBRARY})
-#set(CURSES_NCURSES_LIBRARY /usr/lib/libncurses.so)
-
 
 project(pseudoku)
 add_definitions(-std=c99)
@@ -15,5 +8,5 @@ add_definitions(-Wextra)
 add_definitions(-pedantic)
 add_definitions(-g)
 add_definitions(-O2)
-add_executable(sudoku src/sudoku.c src/iter.c src/cell.c src/puzzle.c src/strategy.c src/backtrack.c src/generator.c src/interactive.c)
+add_executable(sudoku src/sudoku.c src/iter.c src/cell.c src/puzzle.c src/strategy.c src/backtrack.c src/generator.c)
 target_link_libraries(sudoku ${LIBS})
