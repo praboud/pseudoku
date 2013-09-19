@@ -24,11 +24,25 @@ struct cell {
 
 typedef struct cell puzzle[9][9];
 
-uint8_t pencil_to_ink(uint16_t pencil);
-uint16_t ink_to_pencil(uint8_t ink);
+/* uint8_t pencil_to_ink(uint16_t pencil); */
+/* uint16_t ink_to_pencil(uint8_t ink); */
 int pencil_contains_number(uint16_t pencil, uint8_t number);
 void pencil_print(uint16_t pencil, FILE* f);
 uint16_t cell_coerce_pencil(struct cell *c);
-int hamming_weight(uint16_t x);
+
+/* inline functions */
+
+static inline int hamming_weight(uint16_t x) {
+    return __builtin_popcount(x);
+}
+
+static inline uint8_t pencil_to_ink(uint16_t pencil) {
+    /* assert(__builtin_popcount(pencil) == 1); */
+    return __builtin_ffs(pencil);
+}
+
+static inline uint16_t ink_to_pencil(uint8_t ink) {
+    return 0x1 << (ink - 1);
+}
 
 #endif
