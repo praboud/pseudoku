@@ -2,6 +2,7 @@
 #include <assert.h>
 
 #include "strategy.h"
+#include "cell.h"
 #include "debug.h"
 #include "puzzle.h"
 #include "iter.h"
@@ -152,10 +153,126 @@ int _puzzle_subgroup_exclusion_all(puzzle puz) {
     return change;
 }
 
+int _find_subsets(uint16_t *poss, struct cell **group,
+                  const int SUBSET_SIZE_MAX,
+                  int (*cb)(int len, int *indices,
+                            struct cell **cs, uint16_t poss_union)) {
+    UNUSED(poss);
+    UNUSED(cb);
+    if (SUBSET_SIZE_MAX <= 0) return 0;
+    int change = 0;
+    const int SUBSET_SIZE_MIN = 2;
+    int subset[9];
+    int subset_len = 0;
+    int current = 0;
+    while (1) {
+        /* decide whether or not we report the subset */
+        if (subset_len >= SUBSET_SIZE_MIN) {
+            uint16_t poss_union = 0;
+            for (int i = 0; i < subset_len; i++) {
+                assert(poss[subset[i]]);
+                poss_union |= poss[subset[i]];
+            }
+            if (hamming_weight(poss_union) == subset_len) {
+                change |= cb(subset_len, subset, group, poss_union);
+            }
+        }
+        /* get next viable number to try, skip poss equal to 0
+         * for naked set, this is a complete cell,
+         * for hidden set, this is a number that can only go in one place */
+        while (current < 9 && !poss[current]) current++;
+
+        /* justification: this works because for each partial subset,
+         * we will augment it with every subset of the elements larger
+         * than its largest */
+        if (subset_len < SUBSET_SIZE_MAX && current < 9) {
+            /* continue extending subset until too long,
+             * the number in the subset is too great*/
+            subset[subset_len++] = current++;
+        } else {
+            /* otherwise, turn back, and eliminate last numbers
+             * from subset */
+            while (subset_len > 0) {
+                current = subset[--subset_len];
+                do {
+                    current++;
+                } while (current < 9 && !poss[current]);
+                if (current < 9) break;
+            }
+            if (subset_len == 0 && subset[0] >= 8) return change;
+            subset[subset_len++] = current++;
+        }
+    }
+    return change;
+}
+
+int _naked_cb(int len, int *set, struct cell **group, uint16_t poss_union) {
+    int j = 0;
+    int change = 0;
+    dprintf("found naked set: ");
+    pencil_dprint(poss_union);
+    dprintf("\n");
+    /* putchar('['); */
+    /* for (int i = 0; i < len - 1; i++) { */
+    /*     printf("%d, ", set[i]); */
+    /* } */
+    /* printf("%d]\n", set[len - 1]); */
+
+    /* reverse union of possibilties to mask out cell possibilties */
+    uint16_t mask = ~poss_union;
+
+    /* for all incomplete cells in the group not part of the subset,
+     * mask away the possibilities in the subset */
+    for (int i = 0; i < 9; i++) {
+        if (j < len && i == set[j]) {
+            j++;
+        } else if (!group[i]->complete) {
+            dprintf("reducing on %d\n", i);
+            change = change || (poss_union & group[i]->u.ink);
+            group[i]->u.ink &= mask;
+        }
+    }
+    return change;
+}
+
+int _puzzle_naked_set(puzzle puz) {
+    int change = 0;
+    struct cell *group[9];
+    uint16_t possibilities[9];
+    struct iter it;
+    for (enum iter_type t = ROW; t <= BOX; t++) {
+        for (int i = 0; i < 9; i++) {
+            iter_init(&it, t, i);
+            int nonzero_count = 0;
+            puzzle_dprint(puz);
+            dprintf("running naked set analysis on %s %d\n",
+                    iter_type_to_string[t], i);
+
+            for (int j = 0; j < 9; j++) {
+                struct cell *c = iter_next(&it, puz);
+                group[j] = c;
+                if (c->complete) {
+                    possibilities[j] = 0;
+                } else {
+                    possibilities[j] = c->u.pencil;
+                    nonzero_count++;
+                }
+                possibilities[j] = c->complete ? 0 : c->u.pencil;
+            }
+            change |= _find_subsets(possibilities, group,
+                                    nonzero_count, _naked_cb);
+            dprintf("...done\n");
+            puzzle_dprint(puz);
+        }
+    }
+    return change;
+}
+
 int (*_strategies[])(puzzle) = {
     _puzzle_singleton_cell,
     _puzzle_singleton_number,
-    _puzzle_subgroup_exclusion_all
+    _puzzle_subgroup_exclusion_all,
+    _puzzle_naked_set
 };
 
 int _strategy_count = sizeof _strategies / sizeof _strategies[0];
