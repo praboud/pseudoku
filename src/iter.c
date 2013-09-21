@@ -90,7 +90,6 @@ uint16_t iter_acum(struct iter *i, puzzle puz) {
 int iter_consistent(struct iter* i, puzzle puz) {
     uint16_t seen = 0;
     struct cell *c;
-    int j = 0;
     while ((c = iter_next(i, puz))) {
         if (c->complete) {
             uint16_t cur = ink_to_pencil(c->u.ink);
@@ -100,7 +99,6 @@ int iter_consistent(struct iter* i, puzzle puz) {
                 seen |= cur;
             }
         }
-        j++;
     }
     return 1;
 }

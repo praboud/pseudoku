@@ -2,11 +2,13 @@
 #include "iter.h"
 #include <assert.h>
 #include "debug.h"
+#include "strategy.h"
+#include "constants.h"
 
 struct step {
     uint8_t x;
     uint8_t y;
-    uint16_t pencil;
+    puzzle p;
 };
 
 int _next_possibility(uint16_t pencil, int last) {
@@ -29,14 +31,13 @@ int _fill_cell(puzzle puz, struct step **stack, int x, int y, int last_guess) {
         struct step *s = *stack;
         s->x = x;
         s->y = y;
-        s->pencil = puz[x][y].u.pencil;
+        puzzle_copy(puz, s->p);
         *stack = ++s;
-        puz[x][y].complete = 1;
-        puz[x][y].u.ink = next;
+        puzzle_fill_cell(puz, x, y, next);
         dprintf("trying %d next\n", next);
         dprintf("last = %d, next = %d\n", last_guess, next);
         puzzle_dprint(puz);
-        return 1;
+        return next;
     }
 }
 
@@ -68,26 +69,24 @@ int _next_unfilled(puzzle puz, int *x, int *y) {
 
 int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp, int *x, int *y, int last_tried) {
     struct step *stackp = *stackpp;
-    if(!_fill_cell(puz, &stackp, *x, *y, last_tried)) {
-        dprintf("initial fill failed\n");
-        return 0;
-    }
+    assert(last_tried >= 0 && last_tried <= 9);
     while (1) {
         dprintf("s = %ld, x = %d, y = %d\n", stackp - stack, *x, *y);
-        assert(puz[*x][*y].complete);
-        if (_consistent(puz, *x, *y)) {
+        if (puzzle_solve(puz) != INCONSISTENT) {
             dprintf("consistent\n");
             if (!_next_unfilled(puz, x, y)) {
                 dprintf("done\n");
                 *stackpp = stackp;
                 return 1;
             } else {
+                assert(!puz[*x][*y].complete);
                 dprintf("progressing\n");
                 dprintf("before: %ld", stackp - stack);
-                if (!_fill_cell(puz, &stackp, *x, *y, 0)) {
+                if (!(last_tried = _fill_cell(puz, &stackp, *x, *y, 0))) {
                     dprintf("non-initial fill failed\n");
                     return 0;
                 }
+                assert(last_tried >= 1 && last_tried <= 9);
                 dprintf(", after: %ld\n", stackp - stack);
             }
         } else {
@@ -95,7 +94,6 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
             stackp--;
             do {
                 dprintf("backtracking, s = %ld, x = %d, y = %d\n", stackp - stack, *x, *y);
-                assert(puz[*x][*y].complete);
 
                 /* fill_cell increments stackp, so decrement to get last step
                  * written and prepare to overwrite the step*/
@@ -106,10 +104,12 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
                 }
                 assert(stackp >= stack);
                 assert(stackp->x == *x && stackp->y == *y);
-                uint8_t last_tried = puz[*x][*y].u.ink;
+                last_tried = puz[*x][*y].u.ink;
+                puzzle_copy(stackp->p, puz);
                 puz[*x][*y].complete = 0;
-                puz[*x][*y].u.pencil = stackp->pencil;
-                if (!_fill_cell(puz, &stackp, *x, *y, last_tried)) {
+                puz[*x][*y].u.pencil = stackp->p[*x][*y].u.pencil;
+                assert(last_tried >= 0 && last_tried <= 9);
+                if (last_tried >= 9 || !(last_tried = _fill_cell(puz, &stackp, *x, *y, last_tried))) {
                     stackp--;
                     /* we have exhausted options, so we must have guessed badly
                      * at some point before; therefore, we turn back
@@ -117,12 +117,12 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
                      * change coordinates to set up for next round */
                     *x = stackp->x;
                     *y = stackp->y;
+                    assert(puz[*x][*y].complete);
                     dprintf("backing up to x = %d, y = %d\n", *x, *y);
                     assert(*x >= 0 && *x < 9);
                     assert(*y >= 0 && *y < 9);
-                    assert(puz[*x][*y].u.ink >= 1 && puz[*x][*y].u.ink <= 9);
-                    assert(puz[*x][*y].complete);
                 } else {
+                    assert(last_tried >= 1 && last_tried <= 9);
                     dprintf("success!\n");
                     break;
                 }
@@ -138,9 +138,6 @@ int puzzle_backtrack(puzzle puz) {
     int success;
     int x = 0;
     int y = 0;
-    if (!_next_unfilled(puz, &x, &y)) {
-        return 1;
-    }
     if ((success = _run_backtrack(puz, stack, &stackp, &x, &y, 0))) {
         assert(puzzle_is_consistent(puz));
         assert(puzzle_noninked_count(puz) == 0);
@@ -156,21 +153,19 @@ int puzzle_is_unique(puzzle puz) {
     int x = 0;
     int y = 0;
     int last_tried = 0;
-    if (!_next_unfilled(puz, &x, &y)) {
-        return 1;
-    }
     while (_run_backtrack(puz, stack, &stackp, &x, &y, last_tried) && solution_count < 2) {
+        solution_count++;
         assert(puzzle_is_consistent(puz));
         assert(puzzle_noninked_count(puz) == 0);
-        solution_count++;
-        assert(stackp - stack == stack_size);
+        if (stackp <= stack) {
+            break;
+        }
         stackp--;
         x = stackp->x;
         y = stackp->y;
         assert(puz[x][y].complete);
         last_tried = puz[x][y].u.ink;
-        puz[x][y].complete = 0;
-        puz[x][y].u.pencil = stackp->pencil;
+        puzzle_copy(stackp->p, puz);
     }
     return solution_count;
 }
