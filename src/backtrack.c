@@ -114,6 +114,9 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
                 assert(last_tried >= 0 && last_tried <= 9);
                 if (last_tried >= 9 || !(last_tried = _fill_cell(puz, &stackp, *x, *y, last_tried))) {
                     stackp--;
+                    if (stackp < stack) {
+                        return 0;
+                    }
                     /* we have exhausted options, so we must have guessed badly
                      * at some point before; therefore, we turn back
                      * back up even further, to 2 steps ago,
