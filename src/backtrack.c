@@ -1,3 +1,4 @@
+#include "backtrack.h"
 #include "puzzle.h"
 #include "iter.h"
 #include <assert.h>
@@ -29,6 +30,8 @@ int _fill_cell(puzzle puz, struct step **stack, int x, int y, int last_guess) {
         return 0;
     } else {
         struct step *s = *stack;
+        assert(0 <= x && x < 9);
+        assert(0 <= y && y < 9);
         s->x = x;
         s->y = y;
         puzzle_copy(puz, s->p);
@@ -72,7 +75,7 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
     assert(last_tried >= 0 && last_tried <= 9);
     while (1) {
         dprintf("s = %ld, x = %d, y = %d\n", stackp - stack, *x, *y);
-        if (puzzle_solve(puz) != INCONSISTENT) {
+        if (puzzle_logic(puz) != INCONSISTENT) {
             dprintf("consistent\n");
             if (!_next_unfilled(puz, x, y)) {
                 dprintf("done\n");
@@ -117,7 +120,6 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
                      * change coordinates to set up for next round */
                     *x = stackp->x;
                     *y = stackp->y;
-                    assert(puz[*x][*y].complete);
                     dprintf("backing up to x = %d, y = %d\n", *x, *y);
                     assert(*x >= 0 && *x < 9);
                     assert(*y >= 0 && *y < 9);
@@ -132,20 +134,10 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
 }
 
 int puzzle_backtrack(puzzle puz) {
-    int stack_size = puzzle_noninked_count(puz);
-    struct step stack[stack_size];
-    struct step *stackp = stack;
-    int success;
-    int x = 0;
-    int y = 0;
-    if ((success = _run_backtrack(puz, stack, &stackp, &x, &y, 0))) {
-        assert(puzzle_is_consistent(puz));
-        assert(puzzle_noninked_count(puz) == 0);
-    }
-    return success;
+    return puzzle_solution_count(puz, 1);
 }
 
-int puzzle_is_unique(puzzle puz) {
+int puzzle_solution_count(puzzle puz, int max) {
     int stack_size = puzzle_noninked_count(puz);
     struct step stack[stack_size];
     struct step *stackp = stack;
@@ -153,7 +145,7 @@ int puzzle_is_unique(puzzle puz) {
     int x = 0;
     int y = 0;
     int last_tried = 0;
-    while (_run_backtrack(puz, stack, &stackp, &x, &y, last_tried) && solution_count < 2) {
+    while (_run_backtrack(puz, stack, &stackp, &x, &y, last_tried) && solution_count < max) {
         solution_count++;
         assert(puzzle_is_consistent(puz));
         assert(puzzle_noninked_count(puz) == 0);

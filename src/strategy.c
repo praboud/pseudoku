@@ -15,7 +15,7 @@
  * from a cell, or conclusively determine some cell.
  * the calling function is otherwise agnostic to what the strategy does.
  * to be used by the solving function, it must be included in the
- * solve_strategies array. puzzle_solve calls these functions in
+ * solve_strategies array. puzzle_logic calls these functions in
  * rotation until none of the functions can progress any further
  * (ie: * return 1)
  */
@@ -322,7 +322,7 @@ int (*_strategies[])(puzzle) = {
 
 int _strategy_count = sizeof _strategies / sizeof _strategies[0];
 
-int puzzle_solve (puzzle puz) {
+int puzzle_logic (puzzle puz) {
     int change = 1;
     while (change) {
         change = 0;
@@ -338,4 +338,3 @@ int puzzle_solve (puzzle puz) {
     assert(puzzle_is_consistent(puz));
     return SOLVED;
 }
-

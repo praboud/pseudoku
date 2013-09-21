@@ -22,19 +22,10 @@ void read_and_solve (void) {
     puzzle_print(puz, stdout);
     putc('\n', stdout);
 
-    if (puzzle_solve(puz) == INCONSISTENT) {
-        puzzle_print(puz, stdout);
+    if (!puzzle_backtrack(puz)) {
         printf("The puzzle is inconsistent\n");
     } else {
         puzzle_print(puz, stdout);
-        putc('\n', stdout);
-
-        if (puzzle_backtrack(puz) == 0) {
-            puzzle_print(puz, stdout);
-            printf("The puzzle is inconsistent\n");
-        } else {
-            puzzle_print(puz, stdout);
-        }
     }
 }
 
@@ -48,12 +39,8 @@ void generate(void) {
 void test_unique(void) {
     puzzle puz;
     puzzle_read(puz, stdin);
-    /* puzzle_print(puz, stdout); */
     puzzle_pencil_possibilities(puz);
-    /* puzzle_print(puz, stdout); */
-    puzzle_solve(puz);
-    /* puzzle_print(puz, stdout); */
-    printf("%d solutions found\n", puzzle_is_unique(puz));
+    printf("%d solutions found\n", puzzle_solution_count(puz, 2));
 }
 
 int main(int argc, char *argv[]) {

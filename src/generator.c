@@ -53,7 +53,7 @@ void _fill_puzzle(puzzle blank) {
                 puzzle_copy(blank, copy);
                 puzzle_fill_cell(copy, x, y, p);
                 /* check to make sure the puzzle is still solvable */
-                if (puzzle_solve(copy) != INCONSISTENT && puzzle_backtrack(copy)) {
+                if (puzzle_backtrack(copy)) {
                     /* then fill the actual copy of the puzzle with that number */
                     puzzle_fill_cell(blank, x, y, p);
                     break;
@@ -79,8 +79,7 @@ void _remove_cells(puzzle puz, int max_remove) {
         puzzle_copy(puz, copy);
         puzzle_clear_cell(copy, x, y);
         puzzle_pencil_possibilities(copy);
-        assert(puzzle_solve(copy) != INCONSISTENT);
-        int solution_count = puzzle_is_unique(copy);
+        int solution_count = puzzle_solution_count(copy, 2);
         assert(solution_count > 0);
 
         if (solution_count == 1) {
