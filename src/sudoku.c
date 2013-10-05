@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #include "debug.h"
 #include "strategy.h"
@@ -31,9 +32,12 @@ void read_and_solve (void) {
 
 void generate(void) {
     puzzle puz;
-    puzzle_generate(puz);
-    puzzle_pencil_possibilities(puz);
-    puzzle_print(puz, stdout);
+    srand(time(NULL));
+    for (int i = 0; i < 1000; i++) {
+        puzzle_generate(puz);
+        puzzle_pencil_possibilities(puz);
+        puzzle_print(puz, stdout);
+    }
 }
 
 void test_unique(void) {

@@ -91,7 +91,6 @@ void _remove_cells(puzzle puz, int max_remove) {
 }
 
 void puzzle_generate(puzzle puz) {
-    srand(time(NULL));
     _fill_puzzle(puz);
     _remove_cells(puz, 81);
 }
