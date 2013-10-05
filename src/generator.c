@@ -32,6 +32,7 @@ void _random_indices(int *array, int const start, int const end) {
 }
 
 void _fill_puzzle(puzzle blank) {
+    // TODO: this does not seem to always terminate
     puzzle copy;
 
     int indices[BOARD_LENGTH];
@@ -60,6 +61,7 @@ void _fill_puzzle(puzzle blank) {
                 }
             }
         }
+        // TODO: this assertion seems like it should fail sometimes
         assert(blank[x][y].complete);
         assert(puzzle_noninked_count(blank) == BOARD_LENGTH - i - 1);
     }

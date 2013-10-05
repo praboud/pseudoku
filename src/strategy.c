@@ -277,7 +277,7 @@ void _possibility_histogram(uint16_t poss[9]) {
     memcpy(poss, hist, sizeof(uint16_t) * 9);
 }
 
-int _puzzle_naked_set(puzzle puz) {
+int _puzzle_set_analysis(puzzle puz) {
     int change = 0;
     struct cell *group[9];
     uint16_t possibilities[9];
@@ -317,7 +317,7 @@ int (*_strategies[])(puzzle) = {
     _puzzle_singleton_cell,
     _puzzle_singleton_number,
     _puzzle_subgroup_exclusion_all,
-    _puzzle_naked_set
+    /* _puzzle_set_analysis */
 };
 
 int _strategy_count = sizeof _strategies / sizeof _strategies[0];
@@ -326,12 +326,15 @@ int puzzle_logic (puzzle puz) {
     int change = 1;
     while (change) {
         change = 0;
+        int res;
         for (int strat = 0; strat < _strategy_count; strat++) {
-            int res = _strategies[strat](puz);
-            if (res == INCONSISTENT) {
-                return INCONSISTENT;
-            }
-            change |= res;
+            do {
+                res = _strategies[strat](puz);
+                if (res == INCONSISTENT) {
+                    return INCONSISTENT;
+                }
+                change |= res;
+            } while (res == CHANGE);
             dprintf("\n");
         }
     }
