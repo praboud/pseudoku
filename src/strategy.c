@@ -8,6 +8,13 @@
 #include "iter.h"
 #include "constants.h"
 
+/* constants to define cost / relative difficulty implied by application
+ * of various solving strategies */
+
+#define COST_SINGLETON_CELL 100
+#define COST_SINGLETON_NUMBER 120
+#define COST_SUBGROUP_EXCLUSION 150
+
 /* solving strategies */
 /* strategy functions must all take a puzzle, and return an integer
  * the integer is 1 if some change has been made, and 0 otherwise
@@ -20,7 +27,7 @@
  * (ie: * return 1)
  */
 
-int _puzzle_singleton_cell(puzzle puz) {
+int _puzzle_singleton_cell(puzzle puz, int *cost) {
     int change = 0;
     dprintf("running singleton cell\n");
     for (int i = 0; i < 9; i++) {
@@ -31,6 +38,7 @@ int _puzzle_singleton_cell(puzzle puz) {
                     /* then only one number can occupy this cell,
                      * so we can fill it in*/
                     puzzle_fill_cell(puz, i, j, pencil_to_ink(c->u.pencil));
+                    *cost += COST_SINGLETON_CELL;
                     change = 1;
                 } else if (c->u.pencil == 0) {
                     /* then no number can occupy this cell,
@@ -43,7 +51,7 @@ int _puzzle_singleton_cell(puzzle puz) {
     return change;
 }
 
-int _puzzle_singleton_number(puzzle puz) {
+int _puzzle_singleton_number(puzzle puz, int *cost) {
     int change = 0;
     dprintf("running singleton number\n");
     for (enum iter_type t = ROW; t <= BOX; t++) {
@@ -79,6 +87,7 @@ int _puzzle_singleton_number(puzzle puz) {
                     int h = hamming_weight(x);
                     if (h == 1) {
                         puzzle_fill_cell(puz, co.x, co.y, pencil_to_ink(x));
+                        *cost += COST_SINGLETON_NUMBER;
                         change = 1;
                     } else if (h > 1) {
                         /* then there are two or more numbers which must
@@ -96,7 +105,7 @@ int _puzzle_singleton_number(puzzle puz) {
 
 int _puzzle_subgroup_exclusion(puzzle puz, struct iter *group,
                               enum iter_type cross_type, int cross_num,
-                              int cross_skip_start) {
+                              int cross_skip_start, int *cost) {
     uint16_t sub[3];
     memset(sub, 0, sizeof sub);
     struct cell *c;
@@ -129,14 +138,16 @@ int _puzzle_subgroup_exclusion(puzzle puz, struct iter *group,
             int res = iter_mask(&it, puz, m);
             if (res == INCONSISTENT) {
                 return INCONSISTENT;
+            } else if (res == CHANGE) {
+                change = CHANGE;
+                *cost += COST_SUBGROUP_EXCLUSION;
             }
-            change |= res;
         }
     }
     return change;
 }
 
-int _puzzle_subgroup_exclusion_all(puzzle puz) {
+int _puzzle_subgroup_exclusion_all(puzzle puz, int *cost) {
     struct iter it;
     int change = 0;
     dprintf("running subgroup exclusion\n");
@@ -147,7 +158,7 @@ int _puzzle_subgroup_exclusion_all(puzzle puz) {
 
             iter_init(&it, t, i);
             change |= _puzzle_subgroup_exclusion(puz, &it, (t + 2) % 4, (i / 3) * 3,
-                                                (i % 3) * 3);
+                                                 (i % 3) * 3, cost);
         }
     }
     return change;
@@ -313,7 +324,7 @@ int _puzzle_set_analysis(puzzle puz) {
     return change;
 }
 
-int (*_strategies[])(puzzle) = {
+int (*_strategies[])(puzzle, int *cost) = {
     _puzzle_singleton_cell,
     _puzzle_singleton_number,
     _puzzle_subgroup_exclusion_all,
@@ -322,14 +333,14 @@ int (*_strategies[])(puzzle) = {
 
 int _strategy_count = sizeof _strategies / sizeof _strategies[0];
 
-int puzzle_logic (puzzle puz) {
+int puzzle_logic (puzzle puz, int *cost) {
     int change = 1;
     while (change) {
         change = 0;
         int res;
         for (int strat = 0; strat < _strategy_count; strat++) {
             do {
-                res = _strategies[strat](puz);
+                res = _strategies[strat](puz, cost);
                 if (res == INCONSISTENT) {
                     return INCONSISTENT;
                 }

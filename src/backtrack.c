@@ -6,10 +6,13 @@
 #include "strategy.h"
 #include "constants.h"
 
+#define COST_GUESS 10000
+
 struct step {
     uint8_t x;
     uint8_t y;
     puzzle p;
+    int cost;
 };
 
 int _next_possibility(uint16_t pencil, int last) {
@@ -23,7 +26,7 @@ int _next_possibility(uint16_t pencil, int last) {
     return next;
 }
 
-int _fill_cell(puzzle puz, struct step **stack, int x, int y, int last_guess) {
+int _fill_cell(puzzle puz, struct step **stack, int x, int y, int last_guess, int *cost) {
     int next = _next_possibility(puz[x][y].u.pencil, last_guess);
     assert(next >= 0 && next <= 9);
     if (next == 0) {
@@ -34,8 +37,13 @@ int _fill_cell(puzzle puz, struct step **stack, int x, int y, int last_guess) {
         assert(0 <= y && y < 9);
         s->x = x;
         s->y = y;
+
+        /* save cost before this additional guess, then increment cost to account
+         * for increased guess level (n guesses "deep")*/
+        s->cost = *cost;
+        *cost += COST_GUESS;
         puzzle_copy(puz, s->p);
-        *stack = ++s;
+        (*stack)++;
         puzzle_fill_cell(puz, x, y, next);
         dprintf("trying %d next\n", next);
         dprintf("last = %d, next = %d\n", last_guess, next);
@@ -70,12 +78,13 @@ int _next_unfilled(puzzle puz, int *x, int *y) {
     return *x < 9 && *y < 9;
 }
 
-int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp, int *x, int *y, int last_tried) {
+int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp, int *x, int *y,
+                   int last_tried, int *cost) {
     struct step *stackp = *stackpp;
     assert(last_tried >= 0 && last_tried <= 9);
     while (1) {
         dprintf("s = %ld, x = %d, y = %d\n", stackp - stack, *x, *y);
-        if (puzzle_logic(puz) != INCONSISTENT) {
+        if (puzzle_logic(puz, cost) != INCONSISTENT) {
             dprintf("consistent\n");
             if (!_next_unfilled(puz, x, y)) {
                 dprintf("done\n");
@@ -85,7 +94,7 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
                 assert(!puz[*x][*y].complete);
                 dprintf("progressing\n");
                 dprintf("before: %ld", stackp - stack);
-                if (!(last_tried = _fill_cell(puz, &stackp, *x, *y, 0))) {
+                if (!(last_tried = _fill_cell(puz, &stackp, *x, *y, 0, cost))) {
                     dprintf("non-initial fill failed\n");
                     return 0;
                 }
@@ -107,12 +116,13 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
                 }
                 assert(stackp >= stack);
                 assert(stackp->x == *x && stackp->y == *y);
+                *cost = stackp->cost;
                 last_tried = puz[*x][*y].u.ink;
                 puzzle_copy(stackp->p, puz);
                 puz[*x][*y].complete = 0;
                 puz[*x][*y].u.pencil = stackp->p[*x][*y].u.pencil;
                 assert(last_tried >= 0 && last_tried <= 9);
-                if (last_tried >= 9 || !(last_tried = _fill_cell(puz, &stackp, *x, *y, last_tried))) {
+                if (last_tried >= 9 || !(last_tried = _fill_cell(puz, &stackp, *x, *y, last_tried, cost))) {
                     stackp--;
                     if (stackp < stack) {
                         return 0;
@@ -123,6 +133,7 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
                      * change coordinates to set up for next round */
                     *x = stackp->x;
                     *y = stackp->y;
+                    *cost = stackp->cost;
                     dprintf("backing up to x = %d, y = %d\n", *x, *y);
                     assert(*x >= 0 && *x < 9);
                     assert(*y >= 0 && *y < 9);
@@ -136,11 +147,12 @@ int _run_backtrack(puzzle puz, struct step * const stack, struct step **stackpp,
     }
 }
 
-int puzzle_backtrack(puzzle puz) {
-    return puzzle_solution_count(puz, 1);
+int puzzle_backtrack(puzzle puz, int *cost) {
+    return puzzle_solution_count(puz, 1, cost);
 }
 
-int puzzle_solution_count(puzzle puz, int max) {
+int puzzle_solution_count(puzzle puz, int max, int *cost) {
+    /* note that the result taken from the cost parameter is meaningless, if max != 1 */
     int stack_size = puzzle_noninked_count(puz);
     struct step stack[stack_size];
     struct step *stackp = stack;
@@ -148,7 +160,11 @@ int puzzle_solution_count(puzzle puz, int max) {
     int x = 0;
     int y = 0;
     int last_tried = 0;
-    while (_run_backtrack(puz, stack, &stackp, &x, &y, last_tried) && solution_count < max) {
+    int cost_dummy = 0;
+    if (cost == NULL) {
+        cost = &cost_dummy;
+    }
+    while (_run_backtrack(puz, stack, &stackp, &x, &y, last_tried, cost) && solution_count < max) {
         solution_count++;
         assert(puzzle_is_consistent(puz));
         assert(puzzle_noninked_count(puz) == 0);

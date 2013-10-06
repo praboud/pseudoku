@@ -54,7 +54,7 @@ void _fill_puzzle(puzzle blank) {
                 puzzle_copy(blank, copy);
                 puzzle_fill_cell(copy, x, y, p);
                 /* check to make sure the puzzle is still solvable */
-                if (puzzle_backtrack(copy)) {
+                if (puzzle_backtrack(copy, NULL)) {
                     /* then fill the actual copy of the puzzle with that number */
                     puzzle_fill_cell(blank, x, y, p);
                     break;
@@ -81,7 +81,8 @@ void _remove_cells(puzzle puz, int max_remove) {
         puzzle_copy(puz, copy);
         puzzle_clear_cell(copy, x, y);
         puzzle_pencil_possibilities(copy);
-        int solution_count = puzzle_solution_count(copy, 2);
+        /* TODO: use cost to determine when to stop removing cells */
+        int solution_count = puzzle_solution_count(copy, 2, NULL);
         assert(solution_count > 0);
 
         if (solution_count == 1) {

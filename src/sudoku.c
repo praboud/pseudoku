@@ -22,7 +22,7 @@ void read_and_solve (void) {
     puzzle_print(puz, stdout);
     putc('\n', stdout);
 
-    if (!puzzle_backtrack(puz)) {
+    if (!puzzle_backtrack(puz, NULL)) {
         printf("The puzzle is inconsistent\n");
     } else {
         puzzle_print(puz, stdout);
@@ -34,13 +34,16 @@ void generate(void) {
     puzzle_generate(puz);
     puzzle_pencil_possibilities(puz);
     puzzle_print(puz, stdout);
+    int cost = 0;
+    puzzle_backtrack(puz, &cost);
+    printf("difficulty estimated at %d\n", cost);
 }
 
 void test_unique(void) {
     puzzle puz;
     puzzle_read(puz, stdin);
     puzzle_pencil_possibilities(puz);
-    printf("%d solutions found\n", puzzle_solution_count(puz, 2));
+    printf("%d solutions found\n", puzzle_solution_count(puz, 2, NULL));
 }
 
 int main(int argc, char *argv[]) {
