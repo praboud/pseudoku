@@ -1,5 +1,7 @@
 #include <string.h>
 #include <assert.h>
+#include <pthread.h>
+#include <stdlib.h>
 
 #include "strategy.h"
 #include "cell.h"
@@ -43,52 +45,95 @@ int _puzzle_singleton_cell(puzzle puz) {
     return change;
 }
 
+struct singleton_number_arg {
+    enum iter_type t;
+    int i;
+    struct cell (*p)[9];
+    int change;
+};
+
+void *_puzzle_singleton_number_single(void * arg) {
+    struct singleton_number_arg *a = arg;
+    a->change = NO_CHANGE;
+
+    struct iter it;
+    struct cell *c;
+    uint16_t rst[9];
+    memset(rst, 0, sizeof rst);
+    iter_init(&it, a->t, a->i);
+    int j = 0;
+    uint16_t all_seen = 0;
+    /* get union of all cells in group but the ith */
+    while ((c = iter_next(&it, a->p))) {
+        uint16_t m = cell_coerce_pencil(c);
+        all_seen |= m;
+        for (int k = 0; k < j; k++) rst[k] |= m;
+        for (int k = j + 1; k < 9; k++) rst[k] |= m;
+        j++;
+    }
+    if (all_seen != ALL_POS) {
+        /* then there is at least one number is not filled in,
+         * and cannot go in any of the remaining places.
+         * hence, the puzzle is inconsistent */
+        a->change = INCONSISTENT;
+        pthread_exit(NULL);
+    }
+    j = 0;
+    iter_init(&it, a->t, a->i);
+    struct coord co;
+    while ((c = iter_next_c(&it, a->p, &co))) {
+        if (!c->complete) {
+            int x = c->u.pencil & ~rst[j];
+            dprintf("%s %d, pos = %d, pencil = %x, x = %d\n", iter_type_to_string[a->t], a->i, j, c->u.pencil, x);
+            int h = hamming_weight(x);
+            if (h == 1) {
+                puzzle_fill_cell(a->p, co.x, co.y, pencil_to_ink(x));
+                a->change = 1;
+            } else if (h > 1) {
+                /* then there are two or more numbers which must
+                 * occupy the same cell. this is impossible, hence
+                 * the puzzle is inconsistent */
+                a->change = INCONSISTENT;
+                pthread_exit(NULL);
+            }
+        }
+        j++;
+    }
+    pthread_exit(NULL);
+}
+
 int _puzzle_singleton_number(puzzle puz) {
-    int change = 0;
+    int change = NO_CHANGE;
+    int rc;
     dprintf("running singleton number\n");
+    pthread_t threads[27];
+    struct singleton_number_arg args[27];
+
+    int n = 0;
     for (enum iter_type t = ROW; t <= BOX; t++) {
         for (int i = 0; i < 9; i++) {
-            struct iter it;
-            struct cell *c;
-            uint16_t rst[9];
-            memset(rst, 0, sizeof rst);
-            iter_init(&it, t, i);
-            int j = 0;
-            uint16_t all_seen = 0;
-            /* get union of all cells in group but the ith */
-            while ((c = iter_next(&it, puz))) {
-                uint16_t m = cell_coerce_pencil(c);
-                all_seen |= m;
-                for (int k = 0; k < j; k++) rst[k] |= m;
-                for (int k = j + 1; k < 9; k++) rst[k] |= m;
-                j++;
+            args[n].i = i;
+            args[n].t = t;
+            args[n].p = puz;
+            rc = pthread_create(&threads[n], NULL,
+                                _puzzle_singleton_number_single, &args[n]);
+            if (rc) {
+                printf("ERROR: could not create thread");
+                exit(1);
             }
-            if (all_seen != ALL_POS) {
-                /* then there is at least one number is not filled in,
-                 * and cannot go in any of the remaining places.
-                 * hence, the puzzle is inconsistent */
-                return INCONSISTENT;
-            }
-            j = 0;
-            iter_init(&it, t, i);
-            struct coord co;
-            while ((c = iter_next_c(&it, puz, &co))) {
-                if (!c->complete) {
-                    int x = c->u.pencil & ~rst[j];
-                    dprintf("%s %d, pos = %d, pencil = %x, x = %d\n", iter_type_to_string[t], i, j, c->u.pencil, x);
-                    int h = hamming_weight(x);
-                    if (h == 1) {
-                        puzzle_fill_cell(puz, co.x, co.y, pencil_to_ink(x));
-                        change = 1;
-                    } else if (h > 1) {
-                        /* then there are two or more numbers which must
-                         * occupy the same cell. this is impossible, hence
-                         * the puzzle is inconsistent */
-                        return INCONSISTENT;
-                    }
-                }
-                j++;
-            }
+            n++;
+        }
+    }
+    for (n = 0; n < 27; n++) {
+        rc = pthread_join(threads[n], NULL);
+        if (rc) {
+            printf("ERROR: could not join thread");
+            exit(1);
+        }
+        if (args[n].change == INCONSISTENT) {
+            change = INCONSISTENT;
+        } else if (change != INCONSISTENT && args[n].change == CHANGE) {
+            change = CHANGE;
         }
     }
     return change;
