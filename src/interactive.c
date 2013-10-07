@@ -14,6 +14,11 @@
 #define CH_VERT '|'
 #define CH_CROSS '+'
 
+struct history {
+    puzzle p;
+    struct history *next;
+};
+
 void _puzzle_printw_cell(struct cell *c, int highlight) {
     int x, y;
     getyx(stdscr, y, x);
@@ -124,6 +129,13 @@ void _toggle_cell(puzzle p, int x, int y, int n) {
     }
 }
 
+struct history * _history_add_checkpoint(puzzle p, struct history *h) {
+    struct history *t = malloc(sizeof(struct history));
+    puzzle_copy(p, t->p);
+    t->next = h;
+    return t;
+}
+
 void interactive(void) {
     puzzle puz;
     /* FILE *f = fopen("p2", "r"); */
@@ -136,6 +148,7 @@ void interactive(void) {
     int x = 4;
     int y = 4;
     int highlight = 0;
+    struct history *hist = NULL;
     _puzzle_printw(puz, 0);
     _print_dividers(x, y);
     refresh();
@@ -159,16 +172,24 @@ void interactive(void) {
                 break;
             case 'f':
                 ch = getch();
-                if ('0' < ch && ch <= '9') {
-                    if (!puz[x][y].complete) {
-                        puzzle_fill_cell(puz, x, y, ch - '0');
-                    } else {
-                        puzzle_clear_cell(puz, x, y);
-                    }
+                if ('0' < ch && ch <= '9' && !puz[x][y].complete) {
+                    hist = _history_add_checkpoint(puz, hist);
+                    puzzle_fill_cell(puz, x, y, ch - '0');
+                }
+                break;
+            case 'u':
+                if (hist) {
+                    struct history *temp;
+                    puzzle_copy(hist->p, puz);
+                    temp = hist->next;
+                    free(hist);
+                    hist = temp;
                 }
                 break;
             default:
+                /* respond to numbers 1-9 */
                 if ('0' < ch && ch <= '9') {
+                    hist = _history_add_checkpoint(puz, hist);
                     _toggle_cell(puz, x, y, ch - '0');
                 }
                 break;
