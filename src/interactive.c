@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE_EXTENDED
 #include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,10 +10,6 @@
 #include "backtrack.h"
 #include "constants.h"
 #include "generator.h"
-
-#define CH_HORIZ '-'
-#define CH_VERT '|'
-#define CH_CROSS '+'
 
 struct history {
     puzzle p;
@@ -48,19 +45,20 @@ void _print_dividers(int x, int y) {
     /* x and y are the selected cell's coordinates */
     /* i and j are the coordinates corresponding to x and y respectively */
     /* print horizontal dividers */
+    NCURSES_ATTR_T box_attr = COLOR_PAIR(1);
     for (int i = 0; i < 9; i++) {
         for (int j = 0; j <= 9; j++) {
             if (x == i && (y == j || y == j - 1)) {
                 attron(A_REVERSE);
             }
             if (j % 3 == 0) {
-                attron(COLOR_PAIR(1));
+                attron(box_attr);
             }
             for (int k = 1; k <= 3; k++) {
-                mvaddch(4 * j, k + 4 * i, CH_HORIZ);
+                mvadd_wch(4 * j, k + 4 * i, WACS_HLINE);
             }
             attroff(A_REVERSE);
-            attroff(COLOR_PAIR(1));
+            attroff(box_attr);
         }
     }
 
@@ -68,26 +66,43 @@ void _print_dividers(int x, int y) {
     for (int i = 0; i <= 9; i++) {
         for (int j = 0; j < 9; j++) {
             if (i % 3 == 0) {
-                attron(COLOR_PAIR(1));
+                attron(box_attr);
             }
             if (y == j && (x == i || x == i - 1)) {
                 attron(A_REVERSE);
             }
             for (int k = 1; k <= 3; k++) {
-                mvaddch(k + 4 * j, 4 * i, CH_VERT);
+                mvadd_wch(k + 4 * j, 4 * i, WACS_VLINE);
             }
             attroff(A_REVERSE);
-            attroff(COLOR_PAIR(1));
+            attroff(box_attr);
         }
     }
     /* print middle dividers */
     for (int i = 0; i <= 9; i++) {
         for (int j = 0; j <= 9; j++) {
-            if (i % 3 == 0 || j % 3 == 0) {
-                attron(COLOR_PAIR(1));
+            cchar_t *d;
+            if (i == 0) {
+                if (j == 0) d = WACS_ULCORNER;
+                else if (j == 9) d = WACS_LLCORNER;
+                else  d = WACS_LTEE;
+            } else if (i == 9) {
+                if (j == 0) d = WACS_URCORNER;
+                else if (j == 9) d = WACS_LRCORNER;
+                else  d = WACS_RTEE;
+            } else if (j == 0) {
+                d = WACS_TTEE;
+            } else if (j == 9) {
+                d = WACS_BTEE;
+            } else {
+                d = WACS_PLUS;
             }
-            mvaddch(4 * j, 4 * i, CH_CROSS);
-            attroff(COLOR_PAIR(1));
+
+            if (i % 3 == 0 || j % 3 == 0) {
+                attron(box_attr);
+            }
+            mvadd_wch(4 * j, 4 * i, d);
+            attroff(box_attr);
         }
     }
 }
