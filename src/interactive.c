@@ -177,13 +177,13 @@ int main(void) {
     refresh();
     while ((ch = getch()) != 'q') {
         switch (ch) {
-            case 'h': x--;
+            case 'h': if (x > 0) x--;
                 break;
-            case 's': x++;
+            case 's': if (x < 8) x++;
                 break;
-            case 't': y++;
+            case 't': if (y < 8) y++;
                 break;
-            case 'n': y--;
+            case 'n': if (y > 0) y--;
                 break;
             case 'c':
                 ch = getch();
