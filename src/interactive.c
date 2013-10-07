@@ -136,7 +136,7 @@ struct history * _history_add_checkpoint(puzzle p, struct history *h) {
     return t;
 }
 
-void interactive(void) {
+int main(void) {
     puzzle puz;
     /* FILE *f = fopen("p2", "r"); */
     /* puzzle_read(puz, f); */
@@ -199,4 +199,5 @@ void interactive(void) {
         refresh();
     }
     endwin();
+    return 0;
 }

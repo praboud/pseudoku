@@ -10,7 +10,6 @@
 #include "backtrack.h"
 #include "constants.h"
 #include "generator.h"
-#include "interactive.h"
 
 /* forward definitions */
 void puzzle_print(puzzle puz, FILE *f);
@@ -52,14 +51,11 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(command, "generate") == 0) {
             generate();
             return 0;
-        } else if (strcmp(command, "interactive") == 0) {
-            interactive();
-            return 0;
         } else if (strcmp(command, "unique") == 0) {
             test_unique();
             return 0;
         }
     }
-    puts("Usage: ./sudoku [solve|generate|interactive|unique]");
+    puts("Usage: ./sudoku [solve|generate|unique]");
     return 1;
 }
