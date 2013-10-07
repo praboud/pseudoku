@@ -11,6 +11,8 @@
 #include "constants.h"
 #include "generator.h"
 
+#define COLOR_NONE -1
+
 struct history {
     puzzle p;
     struct history *next;
@@ -133,9 +135,15 @@ void _init_scr(void) {
         printf("No color support\n");
         exit(1);
     }
+
+    /* set up colors */
     start_color();
-    init_pair(1, COLOR_RED, COLOR_BLACK);
-    init_pair(2, COLOR_GREEN, COLOR_BLACK);
+    use_default_colors(); /* to use transparent background */
+    init_pair(1, COLOR_RED, COLOR_NONE);
+    init_pair(2, COLOR_GREEN, COLOR_NONE);
+
+    /* hide cursor */
+    curs_set(0);
 }
 
 void _toggle_cell(puzzle p, int x, int y, int n) {
