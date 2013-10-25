@@ -2,6 +2,7 @@
 #include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include "debug.h"
@@ -159,6 +160,28 @@ struct history * _history_add_checkpoint(puzzle p, struct history *h) {
     return t;
 }
 
+struct history * _history_restore_checkpoint(puzzle p, struct history *h) {
+    if (h) {
+        struct history *temp;
+        puzzle_copy(h->p, p);
+        temp = h->next;
+        free(h);
+        return temp;
+    } else {
+        return NULL;
+    }
+}
+
+void _alert(char const *msg) {
+    int len = strlen(msg);
+    WINDOW *w = newwin(3, len + 2, 17, 17 - len / 2);
+    box(w, 0, 0);
+    mvwprintw(w, 1, 1, msg);
+    wrefresh(w);
+    getch();
+    delwin(w);
+}
+
 int main(void) {
     puzzle puz;
     /* FILE *f = fopen("p2", "r"); */
@@ -201,13 +224,7 @@ int main(void) {
                 }
                 break;
             case 'u':
-                if (hist) {
-                    struct history *temp;
-                    puzzle_copy(hist->p, puz);
-                    temp = hist->next;
-                    free(hist);
-                    hist = temp;
-                }
+                hist = _history_restore_checkpoint(puz, hist);
                 break;
             default:
                 /* respond to numbers 1-9 */
@@ -216,6 +233,10 @@ int main(void) {
                     _toggle_cell(puz, x, y, ch - '0');
                 }
                 break;
+        }
+        if (!puzzle_is_consistent(puz)) {
+            _alert("The puzzle is now inconsistent");
+            hist = _history_restore_checkpoint(puz, hist);
         }
         _puzzle_printw(puz, highlight);
         _print_dividers(x, y);
